@@ -4,6 +4,18 @@ from ai_modules.rainwater_predictor import predict_rainwater
 from ai_modules.crisis_model import predict_crisis
 from ai_modules.image_detection import detect_pollution
 import os
+import os
+import gdown
+
+MODEL_PATH = "models/water_model.h5"
+
+if not os.path.exists(MODEL_PATH):
+
+    os.makedirs("models", exist_ok=True)
+
+    url = "https://drive.google.com/uc?id=1Af0frb358OHWFDupuicc89f_h8fmDw5h"
+
+    gdown.download(url, MODEL_PATH, quiet=False)
 
 app = Flask(__name__)
 
