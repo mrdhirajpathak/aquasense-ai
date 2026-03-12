@@ -1,0 +1,12 @@
+flask
+requests
+ibm-watsonx-ai
+torch
+transformers
+sentence-transformers
+faiss-cpu
+tensorflow
+pillow
+numpy
+scikit-learn
+joblib
