@@ -1,13 +1,28 @@
 from flask import Flask, request, jsonify, render_template
+import os
+import gdown
+from config import (
+    IBM_API_KEY,
+    IBM_PROJECT_ID,
+    IBM_URL,
+    MODEL_ID,
+    UPLOAD_FOLDER,
+    MODEL_PATH
+)
+
+# AI Modules
 from ai_modules.watsonx_ai import ask_watson
 from ai_modules.rainwater_predictor import predict_rainwater
 from ai_modules.crisis_model import predict_crisis
 from ai_modules.image_detection import detect_pollution
-import os
-import os
-import gdown
 
-MODEL_PATH = "models/water_model.h5"
+
+# ---------------- FLASK APP ----------------
+
+app = Flask(__name__)
+
+
+# ---------------- MODEL DOWNLOAD ----------------
 
 if not os.path.exists(MODEL_PATH):
 
@@ -15,20 +30,25 @@ if not os.path.exists(MODEL_PATH):
 
     url = "https://drive.google.com/uc?id=1Af0frb358OHWFDupuicc89f_h8fmDw5h"
 
+    print("Downloading water prediction model...")
+
     gdown.download(url, MODEL_PATH, quiet=False)
 
-app = Flask(__name__)
 
-UPLOAD_FOLDER = "uploads"
+# ---------------- UPLOAD FOLDER ----------------
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 
+# ---------------- HOME PAGE ----------------
+
 @app.route("/")
 def home():
     return render_template("index.html")
 
+
+# ---------------- MAP PAGE ----------------
 
 @app.route("/map")
 def mapview():
@@ -40,7 +60,9 @@ def mapview():
 @app.route("/ask", methods=["POST"])
 def ask():
 
-    question = request.json["question"]
+    data = request.json
+
+    question = data.get("question")
 
     answer = ask_watson(
         question,
@@ -59,10 +81,10 @@ def rainwater():
 
     data = request.json
 
-    result = predict_rainwater(
-        data["city"],
-        data["area"]
-    )
+    city = data.get("city")
+    area = data.get("area")
+
+    result = predict_rainwater(city, area)
 
     return jsonify(result)
 
@@ -74,11 +96,16 @@ def crisis():
 
     data = request.json
 
+    rainfall = float(data.get("rainfall"))
+    population = float(data.get("population"))
+    consumption = float(data.get("consumption"))
+    groundwater = float(data.get("groundwater"))
+
     result = predict_crisis(
-        data["rainfall"],
-        data["population"],
-        data["consumption"],
-        data["groundwater"]
+        rainfall,
+        population,
+        consumption,
+        groundwater
     )
 
     return jsonify({
@@ -91,13 +118,16 @@ def crisis():
 @app.route("/upload", methods=["POST"])
 def upload():
 
+    if "image" not in request.files:
+        return jsonify({"error": "No image uploaded"})
+
     file = request.files["image"]
 
-    path = os.path.join(UPLOAD_FOLDER, file.filename)
+    filepath = os.path.join(UPLOAD_FOLDER, file.filename)
 
-    file.save(path)
+    file.save(filepath)
 
-    result = detect_pollution(path)
+    result = detect_pollution(filepath)
 
     return jsonify({
         "result": result
@@ -127,9 +157,9 @@ def water_usage():
 
     data = request.json
 
-    people = int(data["people"])
-    showers = int(data["showers"])
-    laundry = int(data["laundry"])
+    people = int(data.get("people"))
+    showers = int(data.get("showers"))
+    laundry = int(data.get("laundry"))
 
     daily_usage = (people * 135) + (showers * 50) + (laundry * 70)
     monthly_usage = daily_usage * 30
@@ -140,7 +170,13 @@ def water_usage():
     })
 
 
-# ---------------- RUN SERVER ----------------
+# ---------------- SERVER RUN ----------------
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+
+    port = int(os.environ.get("PORT", 5000))
+
+    app.run(
+        host="0.0.0.0",
+        port=port
+    )
